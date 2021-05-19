@@ -206,3 +206,107 @@ describe("remove", function () {
     }
   });
 });
+
+
+/************************************** filter */
+
+describe("filter", function () {
+  test("works with three filters", async function () {
+    const searchParams = {
+      minEmployees: 1, 
+      maxEmployees: 2, 
+      nameLike: 'c'
+    }
+    let companies = await Company.filter(searchParams);
+    expect(companies).toEqual([
+      {
+        handle: "c1",
+        name: "C1",
+        description: "Desc1",
+        numEmployees: 1,
+        logoUrl: "http://c1.img",
+      },
+      {
+        handle: "c2",
+        name: "C2",
+        description: "Desc2",
+        numEmployees: 2,
+        logoUrl: "http://c2.img",
+      },
+    ]);
+  });
+
+  test("works with two filters", async function () {
+    const searchParams = {
+      minEmployees: 1, 
+      nameLike: 'c'
+    }
+    let companies = await Company.filter(searchParams);
+    expect(companies).toEqual([
+      {
+        handle: "c1",
+        name: "C1",
+        description: "Desc1",
+        numEmployees: 1,
+        logoUrl: "http://c1.img",
+      },
+      {
+        handle: "c2",
+        name: "C2",
+        description: "Desc2",
+        numEmployees: 2,
+        logoUrl: "http://c2.img",
+      },
+      {
+        handle: "c3",
+        name: "C3",
+        description: "Desc3",
+        numEmployees: 3,
+        logoUrl: "http://c3.img",
+      },
+    ]);
+  });
+
+  test("works with one filter", async function () {
+    const searchParams = {
+      minEmployees: 3
+    }
+    let companies = await Company.filter(searchParams);
+    expect(companies).toEqual([
+      {
+        handle: "c3",
+        name: "C3",
+        description: "Desc3",
+        numEmployees: 3,
+        logoUrl: "http://c3.img",
+      }
+    ]);
+  });
+
+  test("400 Error if min is greater than max", async function () {
+    const searchParams = {
+      minEmployees: 3,
+      maxEmployees: 1
+    }
+    try {
+      await Company.filter(searchParams);
+      fail();
+      } catch (err) {
+        expect(err instanceof BadRequestError).toBeTruthy();
+      }
+  });
+
+  test("404 Error search params are valid but no results are matched", async function () {
+    const searchParams = {
+      minEmployees: 10,
+      maxEmployees: 50
+    }
+    try {
+      await Company.filter(searchParams);
+      fail();
+      } catch (err) {
+        console.log('reaching catch');
+        expect(err instanceof NotFoundError).toBeTruthy();
+      }
+  });
+});

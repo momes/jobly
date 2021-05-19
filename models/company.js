@@ -2,7 +2,7 @@
 
 const db = require("../db");
 const { BadRequestError, NotFoundError } = require("../expressError");
-const { sqlForPartialUpdate } = require("../helpers/sql");
+const { sqlForPartialUpdate, sqlForFilterSearchCompanies } = require("../helpers/sql");
 
 /** Related functions for companies. */
 
@@ -141,6 +141,41 @@ class Company {
     const company = result.rows[0];
 
     if (!company) throw new NotFoundError(`No company: ${handle}`);
+  }
+
+  /** Filter search all companies.
+   *  Filter params include any or all of { minEmployees, maxEmployees, nameLike }
+   *
+   * Returns [{ handle, name, description, numEmployees, logoUrl }, ...]
+   * */
+   static async filter(searchParams) {
+    const { minEmployees, maxEmployees, nameLike } = searchParams;
+  
+    //throw 400 Error if minEmployees param is greater than maxEmployees
+    if (minEmployees && maxEmployees && maxEmployees < minEmployees) {
+      throw new BadRequestError("maxEmployees search parameter must be greater than minEmployees")
+    }
+    
+    const { whereQuery, values } = sqlForFilterSearchCompanies(searchParams);
+
+    const querySql = `
+      SELECT 
+        handle,
+        name,
+        description,
+        num_employees AS "numEmployees",
+        logo_url AS "logoUrl"
+      FROM companies
+      WHERE ${whereQuery}
+      ORDER BY name`;
+
+    const companiesRes = await db.query(querySql, values);
+
+    // if companiesRes.rows is and empty array [], check the length
+    // add the critera in error message
+    if (companiesRes.rows.length === 0) throw new NotFoundError(`No companies found with search criteria`);
+
+    return companiesRes.rows;
   }
 }
 

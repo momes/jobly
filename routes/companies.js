@@ -11,6 +11,7 @@ const Company = require("../models/company");
 
 const companyNewSchema = require("../schemas/companyNew.json");
 const companyUpdateSchema = require("../schemas/companyUpdate.json");
+const companyFilterSearchSchema = require("../schemas/companyFilterSearch.json");
 
 const router = new express.Router();
 
@@ -47,7 +48,32 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
  */
 
 router.get("/", async function (req, res, next) {
-  const companies = await Company.findAll();
+  //if no filter query, get all companies
+  if (Object.keys(req.query).length === 0) {
+    const companies = await Company.findAll();
+    return res.json({ companies });
+  }
+  
+  //validate query, filters are optional, but no extra queries can be passed
+  //change minEmployees and maxEmployees to ints
+  //ASK!! should i be doing this here?
+  let searchData = req.query;
+  if (searchData.minEmployees !== undefined) {
+    searchData.minEmployees = +searchData.minEmployees;
+  }
+  if (searchData.maxEmployees !== undefined) {
+    searchData.maxEmployees = +searchData.maxEmployees;
+  }
+  const result = jsonschema.validate(searchData, companyFilterSearchSchema);
+  console.log('json schema valid', result);
+
+  //throw error if JSONschema invalid
+  if (!result.valid) {
+    let errs = result.errors.map(err => err.stack);
+    throw new BadRequestError(errs);
+  }
+
+  const companies = await Company.filter(searchData);
   return res.json({ companies });
 });
 
