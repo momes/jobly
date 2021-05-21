@@ -39,8 +39,8 @@ router.post("/", ensureUserIsAdmin, async function (req, res, next) {
 /** GET /  =>
  *   { jobs: [ { title, salary, equity, companyHandle }, ...] }
  *
- * Can filter on provided search filters:
- TODO add filters
+ * Can filter on provided search filters (provided in query string):
+ *  { title, hasEquity, minSalary }
  *
  * Authorization required: none
  */
@@ -54,8 +54,7 @@ router.get("/", async function (req, res, next) {
 
   //validate query, filters are optional, but no extra queries can be passed
   //change hasEquity to boolean
-  //change minSalary to int
-  
+  //change minSalary to integer
   let searchData = req.query;
   if (searchData.hasEquity !== undefined) {
     if (searchData.hasEquity === "true") {

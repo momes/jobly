@@ -99,6 +99,16 @@ describe("ensureUserIsAdmin", function () {
     };
     ensureUserIsAdmin(req, res, next);
   });
+
+  test("unauth if isAdmin is undefined", function () {
+    expect.assertions(1);
+    const req = {};
+    const res = {  locals: { user: { username: "test"} }};
+    const next = function (err) {
+      expect(err instanceof UnauthorizedError).toBeTruthy();
+    };
+    ensureUserIsAdmin(req, res, next);
+  });
 });
 
 describe("ensureUserMatchesReqOrAdmin", function () {
@@ -136,6 +146,16 @@ describe("ensureUserMatchesReqOrAdmin", function () {
     expect.assertions(1);
     const req = {params: {username: "test"}};
     const res = {  locals: { user: { username: "unauthorizedUser", isAdmin: false } }};
+    const next = function (err) {
+      expect(err instanceof UnauthorizedError).toBeTruthy();
+    };
+    ensureUserMatchesReqOrAdmin(req, res, next);
+  });
+
+  test("unauth if res locals undefined", function () {
+    expect.assertions(1);
+    const req = {params: {username: "test"}};
+    const res = {  locals: { user: {} }};
     const next = function (err) {
       expect(err instanceof UnauthorizedError).toBeTruthy();
     };

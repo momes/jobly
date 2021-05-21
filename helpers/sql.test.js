@@ -1,7 +1,6 @@
 
-const { sqlForPartialUpdate, sqlForFilterSearchCompanies } = require("./sql");
+const { sqlForPartialUpdate } = require("./sql");
 const { BadRequestError } = require("../expressError");
-const { findAll } = require("../models/company");
 
 describe("sqlForPartialUpdate", function () {
   test("works for valid update data and jsToSql col names", function () {

@@ -20,9 +20,10 @@ const { BadRequestError } = require("../expressError");
  *   =>
  * 
  * Returns:
- * !!!!!put in double quotes for postgres to keep case sensitive
  * { setCols: 'first_name=$1, last_name=$2, email=$3',
  *  values: ['John', 'Doe', 'email@email.com'] }
+ * 
+ * NOTE: double quotes for colname will keep it case sensitive in postgreSQL
  */
 
 function sqlForPartialUpdate(dataToUpdate, jsToSql) {

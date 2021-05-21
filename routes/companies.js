@@ -66,7 +66,6 @@ router.get("/", async function (req, res, next) {
     searchData.maxEmployees = +searchData.maxEmployees;
   }
   const result = jsonschema.validate(searchData, companyFilterSearchSchema);
-  console.log('json schema valid', result);
 
   //throw error if JSONschema invalid
   if (!result.valid) {
