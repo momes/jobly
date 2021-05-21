@@ -5,13 +5,14 @@
 const jsonschema = require("jsonschema");
 const express = require("express");
 
-const { BadRequestError } = require("../expressError");
-const { ensureLoggedIn } = require("../middleware/auth");
+const { BadRequestError, ForbiddenError } = require("../expressError");
+const { ensureLoggedIn, ensureUserIsAdmin } = require("../middleware/auth");
 const Company = require("../models/company");
 
 const companyNewSchema = require("../schemas/companyNew.json");
 const companyUpdateSchema = require("../schemas/companyUpdate.json");
 const companyFilterSearchSchema = require("../schemas/companyFilterSearch.json");
+const Job = require("../models/job");
 
 const router = new express.Router();
 
@@ -22,10 +23,10 @@ const router = new express.Router();
  *
  * Returns { handle, name, description, numEmployees, logoUrl }
  *
- * Authorization required: login
+ * Authorization required: Admin
  */
 
-router.post("/", ensureLoggedIn, async function (req, res, next) {
+router.post("/", ensureUserIsAdmin, async function (req, res, next) {
   const validator = jsonschema.validate(req.body, companyNewSchema);
   if (!validator.valid) {
     const errs = validator.errors.map(e => e.stack);
@@ -56,11 +57,11 @@ router.get("/", async function (req, res, next) {
   
   //validate query, filters are optional, but no extra queries can be passed
   //change minEmployees and maxEmployees to ints
-  //ASK!! should i be doing this here?
   let searchData = req.query;
   if (searchData.minEmployees !== undefined) {
     searchData.minEmployees = +searchData.minEmployees;
   }
+
   if (searchData.maxEmployees !== undefined) {
     searchData.maxEmployees = +searchData.maxEmployees;
   }
@@ -87,7 +88,14 @@ router.get("/", async function (req, res, next) {
 
 router.get("/:handle", async function (req, res, next) {
   const company = await Company.get(req.params.handle);
-  return res.json({ company });
+  try {
+    const jobsRes = await Job.getJobsOfCompany(req.params.handle);
+    company.jobs = jobsRes;
+    return res.json({ company });
+  } catch {
+    company.jobs = [];
+    return res.json({ company });
+  }
 });
 
 /** PATCH /[handle] { fld1, fld2, ... } => { company }
@@ -98,13 +106,19 @@ router.get("/:handle", async function (req, res, next) {
  *
  * Returns { handle, name, description, numEmployees, logo_url }
  *
- * Authorization required: login
+ * Authorization required: isAdmin
  */
 
-router.patch("/:handle", ensureLoggedIn, async function (req, res, next) {
+router.patch("/:handle", ensureUserIsAdmin, async function (req, res, next) {
   const validator = jsonschema.validate(req.body, companyUpdateSchema);
   if (!validator.valid) {
     const errs = validator.errors.map(e => e.stack);
+
+    if (req.body.handle) {
+      errs.push("Forbidden: can't change company handle name");
+      throw new ForbiddenError(errs);
+    }
+    
     throw new BadRequestError(errs);
   }
 
@@ -114,10 +128,10 @@ router.patch("/:handle", ensureLoggedIn, async function (req, res, next) {
 
 /** DELETE /[handle]  =>  { deleted: handle }
  *
- * Authorization: login
+ * Authorization: isAdmin
  */
 
-router.delete("/:handle", ensureLoggedIn, async function (req, res, next) {
+router.delete("/:handle", ensureUserIsAdmin, async function (req, res, next) {
   await Company.remove(req.params.handle);
   return res.json({ deleted: req.params.handle });
 });

@@ -310,3 +310,96 @@ describe("filter", function () {
       }
   });
 });
+
+
+describe("_sqlForFilterSearchCompanies", function () {
+  test("works for all three filter params", function () {
+    const searchParams = {
+      nameLike: 'net',
+      minEmployees: 5,
+      maxEmployees: 500,
+    };
+    const query = Company._sqlForFilterSearchCompanies(searchParams);
+    expect(query).toEqual({ querySql: `
+      SELECT 
+        handle,
+        name,
+        description,
+        num_employees AS "numEmployees",
+        logo_url AS "logoUrl"
+      FROM companies
+      WHERE name ILIKE $1 AND num_employees >= $2 AND num_employees <= $3
+      ORDER BY name`,
+     
+           searchValues:
+           ['%net%', 5, 500]
+      });
+  });
+
+  test("works for 2 of three filter params", function () {
+    const searchParams = {
+      nameLike: 'net',
+      minEmployees: 5
+    };
+    const query = Company._sqlForFilterSearchCompanies(searchParams);
+    expect(query).toEqual({ 
+      querySql: `
+      SELECT 
+        handle,
+        name,
+        description,
+        num_employees AS "numEmployees",
+        logo_url AS "logoUrl"
+      FROM companies
+      WHERE name ILIKE $1 AND num_employees >= $2
+      ORDER BY name`,
+     
+           searchValues:
+           ['%net%', 5]
+      })
+  });
+
+  test("works for 1 of three filter params", function () {
+    const searchParams = {
+      nameLike: 'net'
+    };
+    const query = Company._sqlForFilterSearchCompanies(searchParams);
+    expect(query).toEqual({ 
+      querySql: `
+      SELECT 
+        handle,
+        name,
+        description,
+        num_employees AS "numEmployees",
+        logo_url AS "logoUrl"
+      FROM companies
+      WHERE name ILIKE $1
+      ORDER BY name`,
+     
+           searchValues:
+           ['%net%']
+      });
+  });
+
+  test("400 if no filter params provided", function () {
+    const searchParams = {};
+    try {
+      Company._sqlForFilterSearchCompanies(searchParams);
+      fail();
+    } catch (err) {
+      expect(err instanceof BadRequestError).toBeTruthy();
+    }
+  });
+
+  test("400 if invalid filter params provided", function () {
+    const searchParams = {
+      invalidSearchParam: "badData",
+    };
+    try {
+      Company._sqlForFilterSearchCompanies(searchParams);
+      fail();
+    } catch (err) {
+      expect(err instanceof BadRequestError).toBeTruthy();
+    }
+  });
+});

@@ -2,7 +2,7 @@
 
 const db = require("../db");
 const { BadRequestError, NotFoundError } = require("../expressError");
-const { sqlForPartialUpdate, sqlForFilterSearchCompanies } = require("../helpers/sql");
+const { sqlForPartialUpdate } = require("../helpers/sql");
 
 /** Related functions for companies. */
 
@@ -156,9 +156,30 @@ class Company {
       throw new BadRequestError("maxEmployees search parameter must be greater than minEmployees")
     }
     
-    const { whereQuery, values } = sqlForFilterSearchCompanies(searchParams);
+    const { querySql, searchValues } = Company._sqlForFilterSearchCompanies(searchParams);
 
-    const querySql = `
+    const companiesRes = await db.query(querySql, searchValues);
+
+    // if companiesRes.rows is and empty array [], check the length
+    if (companiesRes.rows.length === 0) throw new NotFoundError(`No companies found with search criteria: ${searchParams}`);
+
+    return companiesRes.rows;
+  }
+
+
+/**Takes a searchData obj with any/all of { minEmployees, maxEmployees, nameLike }
+ * returns an { querySql, searchValues}
+ * 
+ * Takes: 
+ * {
+ * nameLike: 'net',
+ * maxEmployees: 100,  
+ * minEmployees: 5, 
+ * }
+ * 
+ * Returns
+ * { querySql:
+ * `
       SELECT 
         handle,
         name,
@@ -166,17 +187,54 @@ class Company {
         num_employees AS "numEmployees",
         logo_url AS "logoUrl"
       FROM companies
-      WHERE ${whereQuery}
+      WHERE name ILIKE $1 AND num_employees >= $2 AND num_employees <= $3
+      ORDER BY name`,
+
+      searchValues:
+      ['%net%', 5, 100]
+ }
+ */
+
+  static _sqlForFilterSearchCompanies(searchData) {
+  //should catch this in companies route, just an extra step here
+  const keys = Object.keys(searchData);
+  if (keys.length === 0) throw new BadRequestError("No data");
+
+  let whereQueries = [];
+  let searchValues = [];
+  let idx = 1;
+  for (let key in searchData) {
+    if (key === 'nameLike') {
+      whereQueries.push(`name ILIKE $${idx}`);
+      searchValues.push(`%${searchData[key]}%`);
+    }
+    else if (key === 'minEmployees') {
+      whereQueries.push(`num_employees >= $${idx}`);
+      searchValues.push(+searchData[key]);
+    }
+    else if (key === 'maxEmployees') {
+      whereQueries.push(`num_employees <= $${idx}`);
+      searchValues.push(+searchData[key]);
+    }
+    else {
+      throw new BadRequestError(`Bad Key: ${key}`);
+    }
+    idx++;
+  }
+
+  const querySql = `
+      SELECT 
+        handle,
+        name,
+        description,
+        num_employees AS "numEmployees",
+        logo_url AS "logoUrl"
+      FROM companies
+      WHERE ${whereQueries.join(' AND ')}
       ORDER BY name`;
 
-    const companiesRes = await db.query(querySql, values);
-
-    // if companiesRes.rows is and empty array [], check the length
-    // add the critera in error message
-    if (companiesRes.rows.length === 0) throw new NotFoundError(`No companies found with search criteria`);
-
-    return companiesRes.rows;
-  }
+  return { querySql, searchValues };
+}
 }
 
 
